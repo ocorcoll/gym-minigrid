@@ -9,6 +9,8 @@ import time
 from optparse import OptionParser
 
 import gym_minigrid
+from gym_minigrid.wrappers import FullyObsWrapper, StateWrapper
+
 
 def main():
     parser = OptionParser()
@@ -23,6 +25,8 @@ def main():
 
     # Load the gym environment
     env = gym.make(options.env_name)
+    env = FullyObsWrapper(env)
+    state_env = StateWrapper(env)
 
     def resetEnv():
         env.reset()
@@ -41,8 +45,6 @@ def main():
 
         if keyName == 'ESCAPE':
             sys.exit(0)
-
-        action = 0
 
         if keyName == 'LEFT':
             action = env.actions.left
@@ -67,6 +69,7 @@ def main():
 
         obs, reward, done, info = env.step(action)
 
+        print(state_env.observation(obs)[:, :, 0])
         print('step=%s, reward=%.2f' % (env.step_count, reward))
 
         if done:
