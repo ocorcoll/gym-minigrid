@@ -22,12 +22,12 @@ COLOR_NAMES = sorted(list(COLORS.keys()))
 
 # Used to map colors to integers
 COLOR_TO_IDX = {
-    'red'   : 0,
-    'green' : 1,
-    'blue'  : 2,
-    'purple': 3,
-    'yellow': 4,
-    'grey'  : 5
+    'yellow': 1,
+    'green' : 2,
+    'blue'  : 3,
+    'grey'  : 4,
+    'red'   : 5,
+    'purple': 6
 }
 
 IDX_TO_COLOR = dict(zip(COLOR_TO_IDX.values(), COLOR_TO_IDX.keys()))
@@ -35,7 +35,7 @@ IDX_TO_COLOR = dict(zip(COLOR_TO_IDX.values(), COLOR_TO_IDX.keys()))
 # Map of object type to integers
 OBJECT_TO_IDX = {
     'unseen'        : 0,
-    'empty'         : 1,
+    'empty'         : 0,
     'wall'          : 2,
     'floor'         : 3,
     'door'          : 4,
@@ -89,6 +89,10 @@ class WorldObj:
 
     def can_contain(self):
         """Can this contain another object?"""
+        return False
+
+    def can_pickup_content(self):
+        """Can the agent pick the content of the object?"""
         return False
 
     def see_behind(self):
@@ -537,6 +541,8 @@ class Grid:
                             state = 1
                         if hasattr(v, 'is_locked') and v.is_locked:
                             state = 2
+                        if v.can_contain():
+                            state = OBJECT_TO_IDX[v.contains.type] if v.contains else 1
 
                         array[i, j, 0] = OBJECT_TO_IDX[v.type]
                         array[i, j, 1] = COLOR_TO_IDX[v.color]
@@ -559,7 +565,8 @@ class Grid:
                 typeIdx, colorIdx, state = array[i, j]
 
                 if typeIdx == OBJECT_TO_IDX['unseen'] or \
-                        typeIdx == OBJECT_TO_IDX['empty']:
+                        typeIdx == OBJECT_TO_IDX['empty'] or \
+                        typeIdx == OBJECT_TO_IDX['agent']:
                     continue
 
                 objType = IDX_TO_OBJECT[typeIdx]
@@ -1118,8 +1125,7 @@ class MiniGridEnv(gym.Env):
             if fwd_cell == None or fwd_cell.can_overlap():
                 self.agent_pos = fwd_pos
             if fwd_cell != None and fwd_cell.type == 'goal':
-                done = True
-                reward = self._reward()
+                done, reward = self._reached_goal()
             if fwd_cell != None and fwd_cell.type == 'lava':
                 done = True
 
@@ -1130,12 +1136,18 @@ class MiniGridEnv(gym.Env):
                     self.carrying = fwd_cell
                     self.carrying.cur_pos = np.array([-1, -1])
                     self.grid.set(*fwd_pos, None)
+            elif fwd_cell and fwd_cell.can_pickup_content() and fwd_cell.can_contain() and fwd_cell.contains and self.carrying is None:
+                self.carrying = fwd_cell.contains
+                fwd_cell.contains = None
 
         # Drop an object
         elif action == self.actions.drop:
             if not fwd_cell and self.carrying:
                 self.grid.set(*fwd_pos, self.carrying)
                 self.carrying.cur_pos = fwd_pos
+                self.carrying = None
+            elif fwd_cell is not None and fwd_cell.can_contain() and fwd_cell.contains is None and self.carrying:
+                fwd_cell.contains = self.carrying
                 self.carrying = None
 
         # Toggle/activate an object
@@ -1155,7 +1167,7 @@ class MiniGridEnv(gym.Env):
 
         obs = self.gen_obs()
 
-        return obs, reward, done, {}
+        return obs, reward, done, dict(step=self.step_count)
 
     def gen_obs_grid(self):
         """
@@ -1342,3 +1354,8 @@ class MiniGridEnv(gym.Env):
         elif mode == 'pixmap':
             return r.getPixmap()
         return r
+
+    def _reached_goal(self):
+        done = True
+        reward = self._reward()
+        return done, reward

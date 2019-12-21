@@ -159,8 +159,9 @@ class FullyObsWrapper(gym.core.ObservationWrapper):
         full_grid = env.grid.encode()
         full_grid[env.agent_pos[0]][env.agent_pos[1]] = np.array([
             OBJECT_TO_IDX['agent'],
-            COLOR_TO_IDX['red'],
-            env.agent_dir
+            # COLOR_TO_IDX['red'],
+            OBJECT_TO_IDX[env.carrying.type] if env.carrying else 1,
+            env.agent_dir + 1
         ])
 
         return full_grid
@@ -245,3 +246,60 @@ class AgentViewWrapper(gym.core.Wrapper):
 
     def step(self, action):
         return self.env.step(action)
+
+class StateWrapper(gym.core.ObservationWrapper):
+    """
+    Gridworld using a state encoding
+    """
+
+    def __init__(self, env):
+        super().__init__(env)
+
+        # type, x, y, color, state or object
+        self.observation_space = spaces.Box(
+            low=0,
+            high=255,
+            shape=(env.num_elements, 5, 1),
+            # dtype='uint8',
+            dtype='float32',
+        )
+
+    def observation(self, obs):
+        env_state = np.zeros(self.observation_space.shape)
+        env_state[0, 0] = OBJECT_TO_IDX['agent']
+        env_state[0, 1] = self.env.agent_pos[0] + 1
+        env_state[0, 2] = self.env.agent_pos[1] + 1
+        env_state[0, 3] = self.env.agent_dir + 1
+        env_state[0, 4] = OBJECT_TO_IDX[self.env.carrying.type] if self.env.carrying else 1
+
+        for x in range(self.env.width):
+            for y in range(self.env.height):
+                element = self.env.grid.get(x, y)
+                if element is not None and OBJECT_TO_IDX[element.type] >= 4:
+                    env_state[element.index, 0] = OBJECT_TO_IDX[element.type]
+                    env_state[element.index, 1] = x + 1
+                    env_state[element.index, 2] = y + 1
+                    env_state[element.index, 3] = COLOR_TO_IDX[element.color]
+
+                    element_state = 0
+                    if hasattr(element, 'is_open'):
+                        if element.is_open:
+                            element_state = 1
+                        else:
+                            element_state = 2
+
+                    if hasattr(element, 'is_locked') and element.is_locked:
+                        element_state = 3
+
+                    if element.can_contain():
+                        if element.contains:
+                            element_state = OBJECT_TO_IDX[element.contains.type]
+                        else:
+                            element_state = 1
+
+                    if OBJECT_TO_IDX[element.type] == OBJECT_TO_IDX['goal']:
+                        element_state = 2 if x == self.env.agent_pos[0] and y == self.env.agent_pos[1] else 1
+
+                    env_state[element.index, 4] = element_state
+
+        return env_state

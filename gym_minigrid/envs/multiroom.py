@@ -34,7 +34,7 @@ class MultiRoomEnv(MiniGridEnv):
         self.rooms = []
 
         super(MultiRoomEnv, self).__init__(
-            grid_size=25,
+            grid_size=9,
             max_steps=self.maxNumRooms * 20
         )
 

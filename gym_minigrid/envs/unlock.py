@@ -33,7 +33,9 @@ class Unlock(RoomGrid):
     def step(self, action):
         obs, reward, done, info = super().step(action)
 
-        if action == self.actions.toggle:
+        # Make effect visible
+        # if action == self.actions.toggle:
+        if action != self.actions.toggle:
             if self.door.is_open:
                 reward = self._reward()
                 done = True

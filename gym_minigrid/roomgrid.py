@@ -168,7 +168,7 @@ class RoomGrid(MiniGridEnv):
         )
         self.agent_dir = 0
 
-    def place_in_room(self, i, j, obj):
+    def place_in_room(self, i, j, obj, reject_fn=reject_next_to):
         """
         Add an existing object to room (i, j)
         """
@@ -179,7 +179,7 @@ class RoomGrid(MiniGridEnv):
             obj,
             room.top,
             room.size,
-            reject_fn=reject_next_to,
+            reject_fn=reject_fn,
             max_tries=1000
         )
 
@@ -199,13 +199,15 @@ class RoomGrid(MiniGridEnv):
             color = self._rand_color()
 
         # TODO: we probably want to add an Object.make helper function
-        assert kind in ['key', 'ball', 'box']
+        assert kind in ['key', 'ball', 'box', 'goal']
         if kind == 'key':
             obj = Key(color)
         elif kind == 'ball':
             obj = Ball(color)
         elif kind == 'box':
             obj = Box(color)
+        elif kind == 'goal':
+            obj = Goal()
 
         return self.place_in_room(i, j, obj)
 
