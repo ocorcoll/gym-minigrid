@@ -2,6 +2,7 @@ import math
 import operator
 from functools import reduce
 
+import cv2
 import numpy as np
 import gym
 from gym import error, spaces, utils
@@ -98,6 +99,7 @@ class StateBonus(gym.core.Wrapper):
     def reset(self, **kwargs):
         return self.env.reset(**kwargs)
 
+
 class ImgObsWrapper(gym.core.ObservationWrapper):
     """
     Use the image as the only observation output, no language/mission.
@@ -109,6 +111,23 @@ class ImgObsWrapper(gym.core.ObservationWrapper):
 
     def observation(self, obs):
         return obs['image']
+
+
+class GrayObsWrapper(gym.core.ObservationWrapper):
+
+    def __init__(self, env):
+        super().__init__(env)
+        self.observation_space = spaces.Box(
+            low=0,
+            high=255,
+            shape=(self.observation_space.shape[0], self.observation_space.shape[1], 1),
+            dtype='uint8'
+        )
+
+    def observation(self, obs):
+        frame = cv2.cvtColor(obs, cv2.COLOR_RGB2GRAY)
+        return np.expand_dims(frame, axis=2)
+
 
 class OneHotPartialObsWrapper(gym.core.ObservationWrapper):
     """
@@ -330,6 +349,7 @@ class ViewSizeWrapper(gym.core.Wrapper):
     def step(self, action):
         return self.env.step(action)
 
+
 class StateWrapper(gym.core.ObservationWrapper):
     """
     Gridworld using a state encoding
@@ -338,51 +358,54 @@ class StateWrapper(gym.core.ObservationWrapper):
     def __init__(self, env):
         super().__init__(env)
 
-        # type, x, y, color, state or object
+        # type, x, y, color/dir, state or object
         self.observation_space = spaces.Box(
             low=0,
             high=255,
             shape=(env.num_elements, 5, 1),
-            # dtype='uint8',
             dtype='float32',
         )
+        self.limits = [max(OBJECT_TO_IDX.values()) + 1, env.num_cols * env.room_size, env.num_rows * env.room_size, 5, max(OBJECT_TO_IDX.values()) + 1]
+        print(self.observation_space, self.limits)
 
     def observation(self, obs):
-        env_state = np.zeros(self.observation_space.shape)
-        env_state[0, 0] = OBJECT_TO_IDX['agent']
-        env_state[0, 1] = self.env.agent_pos[0] + 1
-        env_state[0, 2] = self.env.agent_pos[1] + 1
-        env_state[0, 3] = self.env.agent_dir + 1
-        env_state[0, 4] = OBJECT_TO_IDX[self.env.carrying.type] if self.env.carrying else 1
+        return self.env.get_state()
 
-        for x in range(self.env.width):
-            for y in range(self.env.height):
-                element = self.env.grid.get(x, y)
-                if element is not None and OBJECT_TO_IDX[element.type] >= 4:
-                    env_state[element.index, 0] = OBJECT_TO_IDX[element.type]
-                    env_state[element.index, 1] = x + 1
-                    env_state[element.index, 2] = y + 1
-                    env_state[element.index, 3] = COLOR_TO_IDX[element.color]
-
-                    element_state = 0
-                    if hasattr(element, 'is_open'):
-                        if element.is_open:
-                            element_state = 1
-                        else:
-                            element_state = 2
-
-                    if hasattr(element, 'is_locked') and element.is_locked:
-                        element_state = 3
-
-                    if element.can_contain():
-                        if element.contains:
-                            element_state = OBJECT_TO_IDX[element.contains.type]
-                        else:
-                            element_state = 1
-
-                    if OBJECT_TO_IDX[element.type] == OBJECT_TO_IDX['goal']:
-                        element_state = 2 if x == self.env.agent_pos[0] and y == self.env.agent_pos[1] else 1
-
-                    env_state[element.index, 4] = element_state
-
-        return env_state
+        # env_state = np.zeros(self.observation_space.shape)
+        # env_state[0, 0] = OBJECT_TO_IDX['agent']
+        # env_state[0, 1] = self.env.agent_pos[0] + 1
+        # env_state[0, 2] = self.env.agent_pos[1] + 1
+        # env_state[0, 3] = self.env.agent_dir + 1
+        # env_state[0, 4] = OBJECT_TO_IDX[self.env.carrying.type] if self.env.carrying else 1
+        #
+        # for x in range(self.env.width):
+        #     for y in range(self.env.height):
+        #         element = self.env.grid.get(x, y)
+        #         if element is not None and OBJECT_TO_IDX[element.type] >= 4:
+        #             env_state[element.index, 0] = OBJECT_TO_IDX[element.type]
+        #             env_state[element.index, 1] = x + 1
+        #             env_state[element.index, 2] = y + 1
+        #             env_state[element.index, 3] = COLOR_TO_IDX[element.color]
+        #
+        #             element_state = 0
+        #             if hasattr(element, 'is_open'):
+        #                 if element.is_open:
+        #                     element_state = 1
+        #                 else:
+        #                     element_state = 2
+        #
+        #             if hasattr(element, 'is_locked') and element.is_locked:
+        #                 element_state = 3
+        #
+        #             if element.can_contain():
+        #                 if element.contains:
+        #                     element_state = OBJECT_TO_IDX[element.contains.type]
+        #                 else:
+        #                     element_state = 1
+        #
+        #             if OBJECT_TO_IDX[element.type] == OBJECT_TO_IDX['goal']:
+        #                 element_state = 10 if x == self.env.agent_pos[0] and y == self.env.agent_pos[1] else 1
+        #
+        #             env_state[element.index, 4] = element_state
+        #
+        # return env_state

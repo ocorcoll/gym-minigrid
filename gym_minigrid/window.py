@@ -41,6 +41,8 @@ class Window:
         self.imshow_obj.set_data(img)
         self.fig.canvas.draw()
 
+        plt.pause(0.001)
+
     def set_caption(self, text):
         """
         Set/update the caption text below the image
@@ -66,7 +68,12 @@ class Window:
             plt.ion()
 
         # Show the plot, enter the matplotlib event loop
-        plt.show(block=block)
+        # plt.show(block=block)
+
+        # Show the plot
+        # In non-interative mode, this enters the matplotlib event loop
+        # In interactive mode, this call does not block
+        plt.show()
 
     def close(self):
         """

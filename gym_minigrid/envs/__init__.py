@@ -20,3 +20,9 @@ from gym_minigrid.envs.lavagap import *
 from gym_minigrid.envs.dynamicobstacles import *
 from gym_minigrid.envs.distshift import *
 from gym_minigrid.envs.effectsroom import *
+from gym_minigrid.envs.effectsroom_complex import *
+from gym_minigrid.envs.effectsroom_simple import *
+from gym_minigrid.envs.doorkeydemon import *
+from gym_minigrid.envs.demonroom import *
+from gym_minigrid.envs.lightroom import *
+from gym_minigrid.envs.buttonroom import *
