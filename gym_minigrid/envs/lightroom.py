@@ -218,7 +218,7 @@ class LightRoom(RoomGrid):
         return obs, reward, done, info
 
 
-class LightEnableRoomDelayChainEnv(LightRoom):
+class LightEnableRoomDelayChainD1Env(LightRoom):
 
     def __init__(self, seed=None):
         config = {'light_1': (Light, 'green', [], ['button_2']), 'light_2': (Light, 'orange', [], ['button_3']), 'light_3': (Light, 'yellow', [], []),
@@ -227,12 +227,21 @@ class LightEnableRoomDelayChainEnv(LightRoom):
         super().__init__(config, on_delay=7, num_demons=1, seed=seed)
 
 
+class LightEnableRoomDelayChainEnv(LightRoom):
+
+    def __init__(self, seed=None):
+        config = {'light_1': (Light, 'green', [], ['button_2']), 'light_2': (Light, 'orange', [], ['button_3']), 'light_3': (Light, 'yellow', [], []),
+                  'button_1': (Button, 'pink', ['light_1'], []), 'button_2': (Button, 'blue', ['light_2'], []), 'button_3': (Button, 'purple', ['light_3'], [])}
+
+        super().__init__(config, on_delay=7, num_demons=0, seed=seed)
+
+
 class LightEnableRoomDelay1AEnv(LightRoom):
 
     def __init__(self, seed=None):
         config = {'light_1': (Light, 'green', ['light_2'], []), 'light_2': (Light, 'orange', ['light_3'], []), 'light_3': (Light, 'yellow', [], []),
                   'button_1': (Button, 'pink', ['light_1'], []), 'button_2': (Button, 'blue', [], []), 'button_3': (Button, 'purple', [], [])}
-        super().__init__(config, on_delay=7, num_demons=1, seed=seed)
+        super().__init__(config, on_delay=7, num_demons=0, seed=seed)
 
 
 class LightEnableRoomDelayIndepEnv(LightRoom):
@@ -240,8 +249,10 @@ class LightEnableRoomDelayIndepEnv(LightRoom):
     def __init__(self, seed=None):
         config = {'light_1': (Light, 'green', [], []), 'light_2': (Light, 'orange', [], []), 'light_3': (Light, 'yellow', [], []),
                   'button_1': (Button, 'pink', ['light_1'], []), 'button_2': (Button, 'blue', ['light_2'], []), 'button_3': (Button, 'purple', ['light_3'], [])}
-        super().__init__(config, on_delay=7, num_demons=1, seed=seed)
+        super().__init__(config, on_delay=7, num_demons=0, seed=seed)
 
+
+register(id='MiniGrid-LightEnableDelayChainD1Room-v0', entry_point='gym_minigrid.envs:LightEnableRoomDelayChainD1Env')
 
 register(id='MiniGrid-LightEnableDelayChainRoom-v0', entry_point='gym_minigrid.envs:LightEnableRoomDelayChainEnv')
 register(id='MiniGrid-LightEnableDelay1ARoom-v0', entry_point='gym_minigrid.envs:LightEnableRoomDelay1AEnv')
