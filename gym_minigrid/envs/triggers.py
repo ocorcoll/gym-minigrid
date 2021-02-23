@@ -2,15 +2,23 @@
 
 from gym_minigrid.minigrid import *
 from gym_minigrid.register import register
+from enum import IntEnum
 
-import random
 import numpy as np
+import random
 import time
 
 class TriggersEnv(MiniGridEnv):
     """
     Environment with a door and key, sparse reward
     """
+
+    # Enumeration of possible actions
+    class Actions(IntEnum):
+        # Turn left, turn right, move forward
+        left = 0
+        right = 1
+        forward = 2
 
     def __init__(self, size=8, agent_view_size=3, n_switches=2, n_prizes=2):
         self.n_switches = n_switches
@@ -24,6 +32,11 @@ class TriggersEnv(MiniGridEnv):
             max_steps=50,
             agent_view_size=agent_view_size,
         )
+
+        self.actions = self.Actions
+
+
+
 
     def _get_free_random_position(self, width, height):
         seed = time.time() % 2**32-1
