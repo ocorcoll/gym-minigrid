@@ -7,6 +7,9 @@ import cv2
 import numpy as np
 import gym_minigrid
 import gym
+import torch
+import pickle
+import os
 from gym_minigrid.wrappers import *
 from gym_minigrid.window import Window
 
@@ -64,23 +67,32 @@ def effect_to_objects(effect):
         return 'unknown'
 
 
+global recorded_episodes
+recorded_episodes = []
+trajectory = []
+
 prev_obs = None
 np.set_printoptions(threshold=sys.maxsize)
 def step(action):
     global prev_obs
+    global trajectory
     obs, reward, done, info = env.step(action)
     print('step=%s, reward=%.2f' % (env.step_count, reward))
+    
+    if should_record:
+        trajectory.append((obs, action, reward, done))
+
     if prev_obs is not None:
-        import torch
         effect = torch.from_numpy(obs - prev_obs).float()
-        print(np.abs(effect).sum(axis=(0,1)))
-        print(effect.abs().sum(dim=(0, 1)))
-        print(effect_to_objects(effect.permute(2, 0, 1) / 255.))
 
     prev_obs = obs
 
     if done:
         print('done!')
+        if should_record:
+            recorded_episodes.append(trajectory)
+            trajectory = []
+
         prev_obs = reset()
     else:
         redraw(obs)
@@ -122,6 +134,12 @@ def key_handler(event):
         step(env.actions.done)
         return
 
+def save_experience():
+    print('Saving experience...')
+    os.makedirs('recordings', exist_ok=True)
+    recording_name = f'recordings/human_experience_{round(time.time())}.pt'
+    with open(recording_name, 'wb') as f:
+        pickle.dump(recorded_episodes, f)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -148,21 +166,40 @@ if __name__ == '__main__':
         help="draw the agent sees (partially observable view)",
         action='store_true'
     )
+    parser.add_argument(
+        "--record",
+        help="record agent experience",
+        default=False,
+        action='store_true'
+    )
 
     args = parser.parse_args()
 
     env = gym.make(args.env)
-    # env = StateWrapper(env)
-    env = ImgObsWrapper(RGBImgObsWrapper(env))
+    global should_record
+    should_record = args.record
+    print('Should_record', should_record)
+
+    # env = StateWrapper(env)    
     print('start', args)
 
     if args.agent_view:
+        env = ImgObsWrapper(RGBImgPartialObsWrapper(env))
+    else:
         env = ImgObsWrapper(RGBImgObsWrapper(env))
 
     window = Window('gym_minigrid - ' + args.env)
-    window.reg_key_handler(key_handler)
 
-    reset()
+    try:
+        window.reg_key_handler(key_handler)
+        reset()
 
-    # Blocking event loop
-    window.show(block=True)
+        # Blocking event loop
+        window.show(block=True)
+        if should_record:
+            save_experience()
+    except KeyboardInterrupt:
+        if should_record:
+            save_experience()
+
+    
