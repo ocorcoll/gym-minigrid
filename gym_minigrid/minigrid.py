@@ -34,6 +34,7 @@ COLOR_TO_IDX = {
     # 'purple': 4,
     # 'yellow': 5,
     # 'grey': 6
+    'dummy': 0, # fix error for manual_control.py with --agent_view
     'yellow': 1,
     'green': 2,
     'blue': 3,
@@ -64,6 +65,8 @@ OBJECT_TO_IDX = {
     'lava': 11,
     'light': 12,
     'button': 13,
+    'prize': 14,
+    'switch': 15
 }
 
 IDX_TO_OBJECT = dict(zip(OBJECT_TO_IDX.values(), OBJECT_TO_IDX.keys()))
@@ -168,6 +171,10 @@ class WorldObj:
             v = Goal()
         elif obj_type == 'lava':
             v = Lava()
+        elif obj_type == 'prize':
+            v = Prize()
+        elif obj_type == 'switch':
+            v = Switch()
         else:
             assert False, "unknown object type in decode '%s'" % obj_type
 
@@ -365,6 +372,27 @@ class Box(WorldObj):
         # Replace the box by its contents
         env.grid.set(*pos, self.contains)
         return True
+
+
+class Prize(WorldObj):
+    def __init__(self, color='pink'):
+        super(Prize, self).__init__('prize', color)
+
+    def can_overlap(self):
+        return True
+
+    def render(self, img):
+        fill_coords(img, point_in_rect(0, 1, 0, 1), COLORS[self.color])
+
+class Switch(WorldObj):
+    def __init__(self, color='red'):
+        super(Switch, self).__init__('switch', color)
+
+    def can_overlap(self):
+        return True
+
+    def render(self, img):
+        fill_coords(img, point_in_rect(0, 1, 0, 1), COLORS[self.color])
 
 
 class Grid:
@@ -800,6 +828,8 @@ class MiniGridEnv(gym.Env):
             'demon': 'O',
             'light': 'L',
             'button': 'S',
+            'prize': 'P',
+            'switch': 'I',
         }
 
         # Short string for opened door

@@ -26,3 +26,4 @@ from gym_minigrid.envs.doorkeydemon import *
 from gym_minigrid.envs.demonroom import *
 from gym_minigrid.envs.lightroom import *
 from gym_minigrid.envs.buttonroom import *
+from gym_minigrid.envs.triggers import *
