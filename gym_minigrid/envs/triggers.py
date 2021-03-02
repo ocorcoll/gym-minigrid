@@ -27,6 +27,7 @@ class TriggersEnv(MiniGridEnv):
         self.used_positions = set()
         self.prizes = np.zeros((size, size))
         self.switches = np.zeros((size, size))
+        self.agent_color = 'yellow'
         
         super().__init__(
             grid_size=size,
@@ -51,7 +52,7 @@ class TriggersEnv(MiniGridEnv):
 
     def _gen_grid(self, width, height):
         # Create an empty grid
-        self.grid = Grid(width, height)
+        self.grid = Grid(width, height, self.agent_color)
         self.prizes = np.zeros((width,height))
         self.switches = np.zeros((width,height))
 
@@ -136,6 +137,10 @@ class TriggersEnv(MiniGridEnv):
 
         return obs, reward, done, dict(step=self.step_count)
 
+class TriggersEnv3x3Dumb(TriggersEnv):
+    def __init__(self):
+        super().__init__(agent_view_size=3, n_switches=0, n_prizes=2)
+
 class TriggersEnv3x3(TriggersEnv):
     def __init__(self):
         super().__init__(agent_view_size=3, n_switches=2, n_prizes=2)
@@ -147,6 +152,11 @@ class TriggersEnv5x5(TriggersEnv):
 class TriggersEnv7x7(TriggersEnv):
     def __init__(self):
         super().__init__(agent_view_size=7, n_switches=2, n_prizes=2)
+
+register(
+    id='MiniGrid-Triggers-3x3-Dumb-v0',
+    entry_point='gym_minigrid.envs:TriggersEnv3x3Dumb'
+)
 
 register(
     id='MiniGrid-Triggers-3x3-v0',

@@ -403,12 +403,13 @@ class Grid:
     # Static cache of pre-renderer tiles
     tile_cache = {}
 
-    def __init__(self, width, height):
+    def __init__(self, width, height, agent_color):
         assert width >= 3
         assert height >= 3
 
         self.width = width
         self.height = height
+        self.agent_color = agent_color
 
         self.grid = [None] * width * height
 
@@ -472,7 +473,7 @@ class Grid:
         Rotate the grid to the left (counter-clockwise)
         """
 
-        grid = Grid(self.height, self.width)
+        grid = Grid(self.height, self.width, self.agent_color)
 
         for i in range(self.width):
             for j in range(self.height):
@@ -486,7 +487,7 @@ class Grid:
         Get a subset of the grid
         """
 
-        grid = Grid(width, height)
+        grid = Grid(width, height, self.agent_color)
 
         for j in range(0, height):
             for i in range(0, width):
@@ -503,9 +504,9 @@ class Grid:
 
         return grid
 
-    @classmethod
+    # @classmethod
     def render_tile(
-            cls,
+            self,
             obj,
             agent_dir=None,
             highlight=False,
@@ -520,8 +521,8 @@ class Grid:
         key = (agent_dir, highlight, tile_size)
         key = obj.encode() + key if obj else key
 
-        if key in cls.tile_cache:
-            return cls.tile_cache[key]
+        if key in self.tile_cache:
+            return self.tile_cache[key]
 
         img = np.zeros(shape=(tile_size * subdivs, tile_size * subdivs, 3), dtype=np.uint8)
 
@@ -542,7 +543,7 @@ class Grid:
 
             # Rotate the agent based on its direction
             tri_fn = rotate_fn(tri_fn, cx=0.5, cy=0.5, theta=0.5 * math.pi * agent_dir)
-            fill_coords(img, tri_fn, (255, 0, 0))
+            fill_coords(img, tri_fn, COLORS[self.agent_color])
 
         # Highlight the cell if needed
         if highlight:
@@ -552,7 +553,7 @@ class Grid:
         img = downsample(img, subdivs)
 
         # Cache the rendered tile
-        cls.tile_cache[key] = img
+        self.tile_cache[key] = img
 
         return img
 
@@ -584,7 +585,7 @@ class Grid:
                 cell = self.get(i, j)
 
                 agent_here = np.array_equal(agent_pos, (i, j))
-                tile_img = Grid.render_tile(
+                tile_img = self.render_tile(
                     cell,
                     agent_dir=agent_dir if agent_here else None,
                     highlight=highlight_mask[i, j],
@@ -635,7 +636,7 @@ class Grid:
 
         vis_mask = np.ones(shape=(width, height), dtype=np.bool)
 
-        grid = Grid(width, height)
+        grid = Grid(width, height, self.agent_color)
         for i in range(width):
             for j in range(height):
                 type_idx, color_idx, state = array[i, j]
