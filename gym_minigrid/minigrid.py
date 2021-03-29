@@ -626,7 +626,7 @@ class Grid:
         return array
 
     @staticmethod
-    def decode(array):
+    def decode(array, agent_color):
         """
         Decode an array grid encoding back into a grid
         """
@@ -636,7 +636,7 @@ class Grid:
 
         vis_mask = np.ones(shape=(width, height), dtype=np.bool)
 
-        grid = Grid(width, height, self.agent_color)
+        grid = Grid(width, height, agent_color)
         for i in range(width):
             for j in range(height):
                 type_idx, color_idx, state = array[i, j]
@@ -1291,7 +1291,7 @@ class MiniGridEnv(gym.Env):
         Render an agent observation for visualization
         """
 
-        grid, vis_mask = Grid.decode(obs)
+        grid, vis_mask = Grid.decode(obs, self.agent_color)
 
         # Render the whole grid
         img = grid.render(

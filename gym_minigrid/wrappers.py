@@ -64,6 +64,7 @@ class ActionBonus(gym.core.Wrapper):
     def reset(self, **kwargs):
         return self.env.reset(**kwargs)
 
+
 class StateBonus(gym.core.Wrapper):
     """
     Adds an exploration bonus based on which positions
@@ -120,7 +121,8 @@ class GrayObsWrapper(gym.core.ObservationWrapper):
         self.observation_space = spaces.Box(
             low=0,
             high=255,
-            shape=(self.observation_space.shape[0], self.observation_space.shape[1], 1),
+            shape=(self.observation_space.shape[0],
+                   self.observation_space.shape[1], 1),
             dtype='uint8'
         )
 
@@ -171,6 +173,7 @@ class OneHotPartialObsWrapper(gym.core.ObservationWrapper):
             'image': out
         }
 
+
 class RGBImgObsWrapper(gym.core.ObservationWrapper):
     """
     Wrapper to use fully observable RGB image as the only observation output,
@@ -199,9 +202,15 @@ class RGBImgObsWrapper(gym.core.ObservationWrapper):
             tile_size=self.tile_size
         )
 
+        rgb_img_partial = env.get_obs_render(
+            obs['image'],
+            tile_size=self.tile_size
+        )
+
         return {
             'mission': obs['mission'],
-            'image': rgb_img
+            'image': rgb_img,
+            'image_partial': rgb_img_partial,
         }
 
 
@@ -236,6 +245,7 @@ class RGBImgPartialObsWrapper(gym.core.ObservationWrapper):
             'mission': obs['mission'],
             'image': rgb_img_partial
         }
+
 
 class FullyObsWrapper(gym.core.ObservationWrapper):
     """
@@ -298,10 +308,12 @@ class FlatObsWrapper(gym.core.ObservationWrapper):
 
         # Cache the last-encoded mission string
         if mission != self.cachedStr:
-            assert len(mission) <= self.maxStrLen, 'mission string too long ({} chars)'.format(len(mission))
+            assert len(mission) <= self.maxStrLen, 'mission string too long ({} chars)'.format(
+                len(mission))
             mission = mission.lower()
 
-            strArray = np.zeros(shape=(self.maxStrLen, self.numCharCodes), dtype='float32')
+            strArray = np.zeros(
+                shape=(self.maxStrLen, self.numCharCodes), dtype='float32')
 
             for idx, ch in enumerate(mission):
                 if ch >= 'a' and ch <= 'z':
@@ -317,6 +329,7 @@ class FlatObsWrapper(gym.core.ObservationWrapper):
         obs = np.concatenate((image.flatten(), self.cachedArray.flatten()))
 
         return obs
+
 
 class ViewSizeWrapper(gym.core.Wrapper):
     """
@@ -365,7 +378,8 @@ class StateWrapper(gym.core.ObservationWrapper):
             shape=(env.num_elements, 5, 1),
             dtype='float32',
         )
-        self.limits = [max(OBJECT_TO_IDX.values()) + 1, env.num_cols * env.room_size, env.num_rows * env.room_size, 5, max(OBJECT_TO_IDX.values()) + 1]
+        self.limits = [max(OBJECT_TO_IDX.values()) + 1, env.num_cols * env.room_size,
+                       env.num_rows * env.room_size, 5, max(OBJECT_TO_IDX.values()) + 1]
         print(self.observation_space, self.limits)
 
     def observation(self, obs):
