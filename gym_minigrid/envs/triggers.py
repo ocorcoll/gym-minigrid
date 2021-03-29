@@ -21,12 +21,12 @@ class TriggersEnv(MiniGridEnv):
     Environment with a door and key, sparse reward
     """    
 
-    def __init__(self, size=8, agent_view_size=3, n_switches=2, n_prizes=2):
-        self.n_switches = n_switches
+    def __init__(self, size=8, agent_view_size=3, n_triggers=2, n_prizes=2):
+        self.n_triggers = n_triggers
         self.n_prizes = n_prizes
         self.used_positions = set()
         self.prizes = np.zeros((size, size))
-        self.switches = np.zeros((size, size))
+        self.triggers = np.zeros((size, size))
         self.agent_color = 'yellow'
         
         super().__init__(
@@ -41,7 +41,7 @@ class TriggersEnv(MiniGridEnv):
         seed = time.time() % 2**32-1
         random.seed(seed)
         position = tuple(random.sample(range(1, width-1), 2))
-        while self.switches[position] == 1 \
+        while self.triggers[position] == 1 \
             or self.prizes[position] == 1 \
             or self.agent_pos == position:
             random.seed(seed)
@@ -54,7 +54,7 @@ class TriggersEnv(MiniGridEnv):
         # Create an empty grid
         self.grid = Grid(width, height, self.agent_color)
         self.prizes = np.zeros((width,height))
-        self.switches = np.zeros((width,height))
+        self.triggers = np.zeros((width,height))
 
         # Generate prizes
         for i in range(self.n_prizes):
@@ -63,10 +63,10 @@ class TriggersEnv(MiniGridEnv):
             prize = Prize('pink')
             self.put_obj(prize, x, y)
 
-        # Generate switches
-        for i in range(self.n_switches):
+        # Generate triggers
+        for i in range(self.n_triggers):
             x, y = self._get_free_random_position(width, height)
-            self.switches[x,y] = 1
+            self.triggers[x,y] = 1
             self.put_obj(Switch(), x, y)
 
         # Generate the surrounding walls
@@ -75,13 +75,13 @@ class TriggersEnv(MiniGridEnv):
         # Place the agent at a random position and orientation
         self.place_agent()
 
-        self.mission = "step on all switches and then collect all rewards"
+        self.mission = "step on all triggers and then collect all rewards"
 
     def _touched_prize(self, prize):
-        some_switches_left = np.sum(self.switches) > 0
+        some_triggers_left = np.sum(self.triggers) > 0
         no_prizes_left = np.sum(self.prizes) < 2 # if no prizes after this one, done
 
-        if some_switches_left:
+        if some_triggers_left:
             done = no_prizes_left
             reward = -1
         else:
@@ -93,7 +93,7 @@ class TriggersEnv(MiniGridEnv):
         return done, reward
 
     def _touched_switch(self, switch):
-        self.switches[switch.cur_pos] = 0
+        self.triggers[switch.cur_pos] = 0
         self.grid.set(*switch.cur_pos, None)
         return False, 0
 
@@ -139,23 +139,32 @@ class TriggersEnv(MiniGridEnv):
 
 class TriggersEnv3x3Dumb(TriggersEnv):
     def __init__(self):
-        super().__init__(agent_view_size=3, n_switches=0, n_prizes=2)
+        super().__init__(agent_view_size=3, n_triggers=0, n_prizes=2)
+
+class TriggersEnv3x3T1P1(TriggersEnv):
+    def __init__(self):
+        super().__init__(agent_view_size=3, n_triggers=1, n_prizes=1)
 
 class TriggersEnv3x3(TriggersEnv):
     def __init__(self):
-        super().__init__(agent_view_size=3, n_switches=2, n_prizes=2)
+        super().__init__(agent_view_size=3, n_triggers=2, n_prizes=2)
 
 class TriggersEnv5x5(TriggersEnv):
     def __init__(self):
-        super().__init__(agent_view_size=5, n_switches=2, n_prizes=2)
+        super().__init__(agent_view_size=5, n_triggers=2, n_prizes=2)
 
 class TriggersEnv7x7(TriggersEnv):
     def __init__(self):
-        super().__init__(agent_view_size=7, n_switches=2, n_prizes=2)
+        super().__init__(agent_view_size=7, n_triggers=2, n_prizes=2)
 
 register(
     id='MiniGrid-Triggers-3x3-Dumb-v0',
     entry_point='gym_minigrid.envs:TriggersEnv3x3Dumb'
+)
+
+register(
+    id='MiniGrid-Triggers-3x3-T1P1-v0',
+    entry_point='gym_minigrid.envs:TriggersEnv3x3T1P1'
 )
 
 register(
