@@ -9,9 +9,12 @@ from gym_minigrid.minigrid import OBJECT_TO_IDX, COLOR_TO_IDX
 
 class Demon(WorldObj):
 
-    def __init__(self, env, color: str ='grey'):
+    def __init__(self, name, env, color: str = 'grey', movement_type: str = 'random'):
         super().__init__('demon', color)
+        self.name = name
         self.env = env
+        self.movement_type = movement_type
+        self.dir = 0
 
     def render(self, img):
         fill_coords(img, point_in_circle(0.5, 0.5, 0.31), COLORS[self.color])
@@ -30,6 +33,20 @@ class Demon(WorldObj):
 
     def move(self):
         old_pos = self.cur_pos
+        if self.movement_type == 'random':
+            self._move_random()
+        elif self.movement_type == 'vertical':
+            self._move_vertical()
+        else:
+            raise ValueError('Movement type not recognized ({})'.format(self.movement_type))
+
+        if np.any(old_pos != self.cur_pos):
+            return [(self.name, 'move')]
+        else:
+            return list()
+
+    def _move_random(self):
+        old_pos = self.cur_pos
         top = tuple(map(add, old_pos, (-1, -1)))
 
         try:
@@ -37,6 +54,27 @@ class Demon(WorldObj):
             self.env.grid.set(*old_pos, None)
         except:
             pass
+
+    def _move_vertical(self):
+        old_pos = self.cur_pos
+        if self.dir == 0:
+            new_pos = old_pos[0], old_pos[1] + 1
+            if self.env.grid.get(*new_pos) is None and np.any(new_pos != self.env.agent_pos):
+                self.env.grid.set(*new_pos, self)
+                self.env.grid.set(*old_pos, None)
+                self.init_pos = new_pos
+                self.cur_pos = new_pos
+            else:
+                self.dir = 1
+        elif self.dir == 1:
+            new_pos = old_pos[0], old_pos[1] - 1
+            if self.env.grid.get(*new_pos) is None and np.any(new_pos != self.env.agent_pos):
+                self.env.grid.set(*new_pos, self)
+                self.env.grid.set(*old_pos, None)
+                self.init_pos = new_pos
+                self.cur_pos = new_pos
+            else:
+                self.dir = 0
 
 
 class Item(WorldObj):
@@ -134,11 +172,14 @@ class Light(Item):
 
 class LightRoom(RoomGrid):
 
-    def __init__(self, config, on_delay=1, enable_delay=1, num_demons=0, seed=None):
+    def __init__(self, config, on_delay=1, enable_delay=1, num_demons=0, demon_movement='random', seed=None,
+                 place_random=False):
+        self.place_random = place_random
         self.enable_delay = enable_delay
         self.on_delay = on_delay
         self.config = config
         self.num_demons = num_demons
+        self.demon_movement = demon_movement
         self.items = None
         self.demons = None
 
@@ -168,6 +209,12 @@ class LightRoom(RoomGrid):
 
     def _gen_grid(self, width, height):
         super()._gen_grid(width, height)
+
+        def allow_press(env, pos):
+            positions = [(pos[0] + 1, pos[1]), (pos[0] - 1, pos[1]), (pos[0], pos[1] + 1), (pos[0], pos[1] - 1)]
+            busy_spots = np.sum([int(env.grid.get(x, y) is not None) for x, y in positions])
+            return busy_spots > 2
+
         self.items = dict()
         self.demons = list()
 
@@ -175,15 +222,19 @@ class LightRoom(RoomGrid):
             enabled = np.all([name not in item[3] for item in self.config.values()])
             item = cls(name, color, ons, enables, self.items, enabled, self.on_delay if cls is Light else 1, self.enable_delay)
             self.items[name] = item
-            if cls is Light:
-                self.place_obj(item, (2, i + 1), (1, 1))
+
+            if self.place_random:
+                self.place_obj(item, reject_fn=allow_press)
             else:
-                self.place_obj(item, (5, i + 1), (1, 1))
+                if cls is Light:
+                    self.place_obj(item, (2, i + 1), (1, 1))
+                else:
+                    self.place_obj(item, (5, i + 1), (1, 1))
 
         for i in range(self.num_demons):
-            demon = Demon(self)
+            demon = Demon('demon_{}'.format(i + 1), self, movement_type=self.demon_movement)
             self.demons.append(demon)
-            self.place_obj(demon, (5, i + 1), (1, 1))
+            self.place_obj(demon)
 
         self.place_agent(0, 0)
         self.mission = 'do nothing'
@@ -193,67 +244,114 @@ class LightRoom(RoomGrid):
         # Freeze agent when a change in the obs will happen
         if np.any([item.steps == 1 or getattr(item, 'enable_steps', 0) == 1 for item in self.items.values()]):
             done = self.step_count >= self.max_steps
-            info = dict(step=self.step_count)
+            info = dict(step=self.step_count, events=list())
             reward = 0
         else:
             obs, reward, done, info = super().step(action)
-            for demon in self.demons:
-                demon.move()
+            info['events'] = list()
 
         if np.all([light.is_on for light in self.items.values() if light.item_type == 'light']):
             reward = 1.
             done = True
 
-        info['events'] = list()
         for item in self.items.values():
             info['events'].extend(item.update())
 
+        if not info['events']:
+            for demon in self.demons:
+                info['events'].extend(demon.move())
+
         if self.agent_dir != prev_agent_state[0]:
-            info['events'].append(('agent', 'rotate'))
+            # info['events'].append(('agent', 'rotate'))
+            info['events'].append(('agent', 'move'))
 
         if self.agent_pos[0] != prev_agent_state[1] or self.agent_pos[1] != prev_agent_state[2]:
-            info['events'].append(('agent', 'forward'))
+            # info['events'].append(('agent', 'forward'))
+            info['events'].append(('agent', 'move'))
 
         obs = self.gen_obs()
         return obs, reward, done, info
 
 
-class LightEnableRoomDelayChainD1Env(LightRoom):
+CONFIG_CHAIN = {
+    'light_1': (Light, 'green', [], ['button_2']),
+    'light_2': (Light, 'orange', [], ['button_3']),
+    'light_3': (Light, 'yellow', [], []),
+    'button_1': (Button, 'pink', ['light_1'], []),
+    'button_2': (Button, 'blue', ['light_2'], []),
+    'button_3': (Button, 'purple', ['light_3'], [])
+}
+
+CONFIG_1A = {
+    'light_1': (Light, 'green', ['light_2'], []),
+    'light_2': (Light, 'orange', ['light_3'], []),
+    'light_3': (Light, 'yellow', [], []),
+    'button_1': (Button, 'pink', ['light_1'], []),
+    'button_2': (Button, 'blue', [], []),
+    'button_3': (Button, 'purple', [], [])
+}
+
+CONFIG_INDEP = {
+    'light_1': (Light, 'green', [], []),
+    'light_2': (Light, 'orange', [], []),
+    'light_3': (Light, 'yellow', [], []),
+    'button_1': (Button, 'pink', ['light_1'], []),
+    'button_2': (Button, 'blue', ['light_2'], []),
+    'button_3': (Button, 'purple', ['light_3'], [])
+}
+
+CONFIG = {'Chain': CONFIG_CHAIN, '1A': CONFIG_1A, 'Indep': CONFIG_INDEP}
+
+
+class LightRoomEnv(LightRoom):
+
+    def __init__(self, mode, **kwargs):
+        super().__init__(config=CONFIG[mode], **kwargs)
+
+
+class LightEnableRoomDelayChainD1VEnv(LightRoom):
 
     def __init__(self, seed=None):
-        config = {'light_1': (Light, 'green', [], ['button_2']), 'light_2': (Light, 'orange', [], ['button_3']), 'light_3': (Light, 'yellow', [], []),
-                  'button_1': (Button, 'pink', ['light_1'], []), 'button_2': (Button, 'blue', ['light_2'], []), 'button_3': (Button, 'purple', ['light_3'], [])}
+        super().__init__(CONFIG_CHAIN, on_delay=7, num_demons=1, demon_movement='vertical', seed=seed)
 
-        super().__init__(config, on_delay=7, num_demons=1, seed=seed)
+
+class LightEnableRoomDelay1AD1VEnv(LightRoom):
+
+    def __init__(self, seed=None):
+        super().__init__(CONFIG_1A, on_delay=7, num_demons=1, demon_movement='vertical', seed=seed)
+
+
+class LightEnableRoomDelayIndepD1VEnv(LightRoom):
+
+    def __init__(self, seed=None):
+        super().__init__(CONFIG_INDEP, on_delay=7, num_demons=1, demon_movement='vertical', seed=seed)
 
 
 class LightEnableRoomDelayChainEnv(LightRoom):
 
     def __init__(self, seed=None):
-        config = {'light_1': (Light, 'green', [], ['button_2']), 'light_2': (Light, 'orange', [], ['button_3']), 'light_3': (Light, 'yellow', [], []),
-                  'button_1': (Button, 'pink', ['light_1'], []), 'button_2': (Button, 'blue', ['light_2'], []), 'button_3': (Button, 'purple', ['light_3'], [])}
-
-        super().__init__(config, on_delay=7, num_demons=0, seed=seed)
+        super().__init__(CONFIG_CHAIN, on_delay=7, num_demons=0, seed=seed)
 
 
 class LightEnableRoomDelay1AEnv(LightRoom):
 
     def __init__(self, seed=None):
-        config = {'light_1': (Light, 'green', ['light_2'], []), 'light_2': (Light, 'orange', ['light_3'], []), 'light_3': (Light, 'yellow', [], []),
-                  'button_1': (Button, 'pink', ['light_1'], []), 'button_2': (Button, 'blue', [], []), 'button_3': (Button, 'purple', [], [])}
-        super().__init__(config, on_delay=7, num_demons=0, seed=seed)
+        super().__init__(CONFIG_1A, on_delay=7, num_demons=0, seed=seed)
 
 
 class LightEnableRoomDelayIndepEnv(LightRoom):
 
     def __init__(self, seed=None):
-        config = {'light_1': (Light, 'green', [], []), 'light_2': (Light, 'orange', [], []), 'light_3': (Light, 'yellow', [], []),
-                  'button_1': (Button, 'pink', ['light_1'], []), 'button_2': (Button, 'blue', ['light_2'], []), 'button_3': (Button, 'purple', ['light_3'], [])}
-        super().__init__(config, on_delay=7, num_demons=0, seed=seed)
+        super().__init__(CONFIG_INDEP, on_delay=7, num_demons=0, seed=seed)
 
 
-register(id='MiniGrid-LightEnableDelayChainD1Room-v0', entry_point='gym_minigrid.envs:LightEnableRoomDelayChainD1Env')
+register(id='MiniGrid-LightRoomEnv-v0', entry_point='gym_minigrid.envs:LightRoomEnv')
 
 register(id='MiniGrid-LightEnableDelayChainRoom-v0', entry_point='gym_minigrid.envs:LightEnableRoomDelayChainEnv')
+register(id='MiniGrid-LightEnableDelayChainD1VRoom-v0', entry_point='gym_minigrid.envs:LightEnableRoomDelayChainD1VEnv')
+
 register(id='MiniGrid-LightEnableDelay1ARoom-v0', entry_point='gym_minigrid.envs:LightEnableRoomDelay1AEnv')
+register(id='MiniGrid-LightEnableDelay1AD1VRoom-v0', entry_point='gym_minigrid.envs:LightEnableRoomDelay1AD1VEnv')
+
 register(id='MiniGrid-LightEnableDelayIndepRoom-v0', entry_point='gym_minigrid.envs:LightEnableRoomDelayIndepEnv')
+register(id='MiniGrid-LightEnableDelayIndepD1VRoom-v0', entry_point='gym_minigrid.envs:LightEnableRoomDelayIndepD1VEnv')
