@@ -8,6 +8,7 @@ import gym
 from gym import error, spaces, utils
 from .minigrid import OBJECT_TO_IDX, COLOR_TO_IDX, STATE_TO_IDX
 
+
 class ReseedWrapper(gym.core.Wrapper):
     """
     Wrapper to always regenerate an environment with the same set of seeds.
@@ -29,6 +30,7 @@ class ReseedWrapper(gym.core.Wrapper):
     def step(self, action):
         obs, reward, done, info = self.env.step(action)
         return obs, reward, done, info
+
 
 class ActionBonus(gym.core.Wrapper):
     """
@@ -202,6 +204,40 @@ class RGBImgObsWrapper(gym.core.ObservationWrapper):
             tile_size=self.tile_size
         )
 
+        return {
+            'mission': obs['mission'],
+            'image': rgb_img,
+        }
+
+
+class RGBImgBothObsWrapper(gym.core.ObservationWrapper):
+    """
+    Wrapper that shares both full and partially observable RGB images as the observation output. 
+    This can be used to have the agent to solve the
+    gridworld in pixel space.
+    """
+
+    def __init__(self, env, tile_size=8):
+        super().__init__(env)
+
+        self.tile_size = tile_size
+
+        self.observation_space.spaces['image'] = spaces.Box(
+            low=0,
+            high=255,
+            shape=(self.env.width*tile_size, self.env.height*tile_size, 3),
+            dtype='uint8'
+        )
+
+    def observation(self, obs):
+        env = self.unwrapped
+
+        rgb_img = env.render(
+            mode='rgb_array',
+            highlight=False,
+            tile_size=self.tile_size
+        )
+
         rgb_img_partial = env.get_obs_render(
             obs['image'],
             tile_size=self.tile_size
@@ -276,6 +312,7 @@ class FullyObsWrapper(gym.core.ObservationWrapper):
             'mission': obs['mission'],
             'image': full_grid
         }
+
 
 class FlatObsWrapper(gym.core.ObservationWrapper):
     """

@@ -9,12 +9,14 @@ import numpy as np
 import random
 import time
 
+
 # Enumeration of possible actions
 class Actions(IntEnum):
     # Turn left, turn right, move forward
     left = 0
     right = 1
     forward = 2
+
 
 class TriggersEnv(MiniGridEnv):
     """
@@ -153,9 +155,17 @@ class TriggersEnv5x5(TriggersEnv):
     def __init__(self):
         super().__init__(agent_view_size=5, n_triggers=2, n_prizes=2)
 
+class TriggersEnv5x5T1P1(TriggersEnv):
+    def __init__(self):
+        super().__init__(agent_view_size=5, n_triggers=1, n_prizes=1)
+
 class TriggersEnv7x7(TriggersEnv):
     def __init__(self):
         super().__init__(agent_view_size=7, n_triggers=2, n_prizes=2)
+
+class TriggersEnv7x7T1P1(TriggersEnv):
+    def __init__(self):
+        super().__init__(agent_view_size=7, n_triggers=1, n_prizes=1)
 
 register(
     id='MiniGrid-Triggers-3x3-Dumb-v0',
@@ -178,6 +188,16 @@ register(
 )
 
 register(
+    id='MiniGrid-Triggers-5x5-T1P1-v0',
+    entry_point='gym_minigrid.envs:TriggersEnv5x5T1P1'
+)
+
+register(
     id='MiniGrid-Triggers-7x7-v0',
     entry_point='gym_minigrid.envs:TriggersEnv7x7'
+)
+
+register(
+    id='MiniGrid-Triggers-7x7-T1P1-v0',
+    entry_point='gym_minigrid.envs:TriggersEnv7x7T1P1'
 )
