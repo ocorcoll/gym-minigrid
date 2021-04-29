@@ -126,6 +126,9 @@ class Item(WorldObj):
         self.enable_steps = max(0, self.enable_steps - 1)
         return events
 
+    def __str__(self):
+        return 'name: {}, color: {}, on: {}, enabled: {}'.format(self.name, self.color, self.is_on, self.enabled)
+
 
 class Button(Item):
 
@@ -197,7 +200,7 @@ class LightRoom(RoomGrid):
             num_rows=self.num_rows,
             num_cols=self.num_cols,
             room_size=self.room_size,
-            max_steps=4*self.room_size**2,
+            max_steps=2*self.room_size**2,
             seed=seed,
         )
 
@@ -250,10 +253,6 @@ class LightRoom(RoomGrid):
             obs, reward, done, info = super().step(action)
             info['events'] = list()
 
-        if np.all([light.is_on for light in self.items.values() if light.item_type == 'light']):
-            reward = 1.
-            done = True
-
         for item in self.items.values():
             info['events'].extend(item.update())
 
@@ -268,6 +267,10 @@ class LightRoom(RoomGrid):
         if self.agent_pos[0] != prev_agent_state[1] or self.agent_pos[1] != prev_agent_state[2]:
             # info['events'].append(('agent', 'forward'))
             info['events'].append(('agent', 'move'))
+
+        if np.all([light.is_on for light in self.items.values() if light.item_type == 'light']):
+            reward = 1.
+            done = True
 
         obs = self.gen_obs()
         return obs, reward, done, info
