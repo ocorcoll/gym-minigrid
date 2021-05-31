@@ -147,6 +147,10 @@ class TriggersEnv3x3T1P1(TriggersEnv):
     def __init__(self):
         super().__init__(agent_view_size=3, n_triggers=1, n_prizes=1)
 
+class TriggersEnv3x3T3P1(TriggersEnv):
+    def __init__(self):
+        super().__init__(agent_view_size=3, n_triggers=3, n_prizes=1)
+
 class TriggersEnv3x3(TriggersEnv):
     def __init__(self):
         super().__init__(agent_view_size=3, n_triggers=2, n_prizes=2)
@@ -175,6 +179,11 @@ register(
 register(
     id='MiniGrid-Triggers-3x3-T1P1-v0',
     entry_point='gym_minigrid.envs:TriggersEnv3x3T1P1'
+)
+
+register(
+    id='MiniGrid-Triggers-3x3-T3P1-v0',
+    entry_point='gym_minigrid.envs:TriggersEnv3x3T3P1'
 )
 
 register(
