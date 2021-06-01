@@ -7,6 +7,31 @@ from gym_minigrid.register import register
 from gym_minigrid.minigrid import OBJECT_TO_IDX, COLOR_TO_IDX
 
 
+class Reward(WorldObj):
+
+    def __init__(self):
+        super().__init__('reward', 'green')
+        self.reward = 0
+        self.steps = 0
+        self.item_type = 'reward'
+
+    def update(self, reward):
+        # if self.reward != reward:
+        if reward != 0:
+            event = [('reward', str(reward))]
+        else:
+            event = list()
+
+        self.reward = reward
+        return event
+
+    def render(self, img):
+        fill_coords(img, point_in_rect(0, 1, 0, 1), self.reward * COLORS[self.color])
+
+    def encode(self):
+        return OBJECT_TO_IDX[self.type], COLOR_TO_IDX[self.color], self.reward
+
+
 class Demon(WorldObj):
 
     def __init__(self, name, env, color: str = 'grey', movement_type: str = 'random'):
@@ -126,6 +151,9 @@ class Item(WorldObj):
         self.enable_steps = max(0, self.enable_steps - 1)
         return events
 
+    def __str__(self):
+        return 'name: {}, color: {}, on: {}, enabled: {}'.format(self.name, self.color, self.is_on, self.enabled)
+
 
 class Button(Item):
 
@@ -197,7 +225,7 @@ class LightRoom(RoomGrid):
             num_rows=self.num_rows,
             num_cols=self.num_cols,
             room_size=self.room_size,
-            max_steps=4*self.room_size**2,
+            max_steps=2*self.room_size**2,
             seed=seed,
         )
 
@@ -217,6 +245,10 @@ class LightRoom(RoomGrid):
 
         self.items = dict()
         self.demons = list()
+
+        reward = Reward()
+        self.grid.set(0, 0, reward)
+        self.items['reward'] = reward
 
         for i, (name, (cls, color, ons, enables)) in enumerate(self.config.items()):
             enabled = np.all([name not in item[3] for item in self.config.values()])
@@ -250,24 +282,27 @@ class LightRoom(RoomGrid):
             obs, reward, done, info = super().step(action)
             info['events'] = list()
 
-        if np.all([light.is_on for light in self.items.values() if light.item_type == 'light']):
-            reward = 1.
-            done = True
-
         for item in self.items.values():
-            info['events'].extend(item.update())
+            if not isinstance(item, Reward):
+                info['events'].extend(item.update())
 
         if not info['events']:
             for demon in self.demons:
                 info['events'].extend(demon.move())
 
         if self.agent_dir != prev_agent_state[0]:
-            # info['events'].append(('agent', 'rotate'))
             info['events'].append(('agent', 'move'))
 
         if self.agent_pos[0] != prev_agent_state[1] or self.agent_pos[1] != prev_agent_state[2]:
-            # info['events'].append(('agent', 'forward'))
             info['events'].append(('agent', 'move'))
+
+        if np.all([light.is_on for light in self.items.values() if light.item_type == 'light']):
+            reward = 1.
+            done = True
+
+        for item in self.items.values():
+            if isinstance(item, Reward):
+                info['events'].extend(item.update(reward))
 
         obs = self.gen_obs()
         return obs, reward, done, info
