@@ -286,9 +286,8 @@ class LightRoom(RoomGrid):
             if not isinstance(item, Reward):
                 info['events'].extend(item.update())
 
-        if not info['events']:
-            for demon in self.demons:
-                info['events'].extend(demon.move())
+        for demon in self.demons:
+            info['events'].extend(demon.move())
 
         if self.agent_dir != prev_agent_state[0]:
             info['events'].append(('agent', 'move'))
@@ -300,35 +299,40 @@ class LightRoom(RoomGrid):
             reward = 1.
             done = True
 
+        # Needs to be updated after reward is computed!
+        for item in self.items.values():
+            if isinstance(item, Reward):
+                info['events'].extend(item.update(reward))
+
         obs = self.gen_obs()
         return obs, reward, done, info
 
 
 CONFIG_CHAIN = {
-    'light_1': (Light, 'green', [], ['button_2']),
+    'light_1': (Light, 'yellow', [], ['button_2']),
     'light_2': (Light, 'orange', [], ['button_3']),
-    'light_3': (Light, 'yellow', [], []),
-    'button_1': (Button, 'pink', ['light_1'], []),
-    'button_2': (Button, 'blue', ['light_2'], []),
-    'button_3': (Button, 'purple', ['light_3'], [])
+    'light_3': (Light, 'green', [], []),
+    'button_1': (Button, 'yellow', ['light_1'], []),
+    'button_2': (Button, 'orange', ['light_2'], []),
+    'button_3': (Button, 'green', ['light_3'], [])
 }
 
 CONFIG_1A = {
-    'light_1': (Light, 'green', ['light_2'], []),
+    'light_1': (Light, 'yellow', ['light_2'], []),
     'light_2': (Light, 'orange', ['light_3'], []),
-    'light_3': (Light, 'yellow', [], []),
-    'button_1': (Button, 'pink', ['light_1'], []),
-    'button_2': (Button, 'blue', [], []),
-    'button_3': (Button, 'purple', [], [])
+    'light_3': (Light, 'green', [], []),
+    'button_1': (Button, 'yellow', ['light_1'], []),
+    'button_2': (Button, 'orange', [], []),
+    'button_3': (Button, 'green', [], [])
 }
 
 CONFIG_INDEP = {
-    'light_1': (Light, 'green', [], []),
+    'light_1': (Light, 'yellow', [], []),
     'light_2': (Light, 'orange', [], []),
-    'light_3': (Light, 'yellow', [], []),
-    'button_1': (Button, 'pink', ['light_1'], []),
-    'button_2': (Button, 'blue', ['light_2'], []),
-    'button_3': (Button, 'purple', ['light_3'], [])
+    'light_3': (Light, 'green', [], []),
+    'button_1': (Button, 'yellow', ['light_1'], []),
+    'button_2': (Button, 'orange', ['light_2'], []),
+    'button_3': (Button, 'green', ['light_3'], [])
 }
 
 CONFIG = {'Chain': CONFIG_CHAIN, '1A': CONFIG_1A, 'Indep': CONFIG_INDEP}

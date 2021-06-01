@@ -80,7 +80,9 @@ def step(action):
     prev_obs = obs
 
     if done:
-        print('done!')
+        redraw(obs)
+        print('done!', reward, done)
+        time.sleep(10)
         prev_obs = reset()
     else:
         redraw(obs)
