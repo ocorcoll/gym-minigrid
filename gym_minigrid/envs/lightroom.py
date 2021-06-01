@@ -300,10 +300,6 @@ class LightRoom(RoomGrid):
             reward = 1.
             done = True
 
-        for item in self.items.values():
-            if isinstance(item, Reward):
-                info['events'].extend(item.update(reward))
-
         obs = self.gen_obs()
         return obs, reward, done, info
 
