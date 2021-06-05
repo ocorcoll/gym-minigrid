@@ -23,13 +23,14 @@ class TriggersEnv(MiniGridEnv):
     Environment with a door and key, sparse reward
     """    
 
-    def __init__(self, size=8, agent_view_size=3, n_triggers=2, n_prizes=2):
+    def __init__(self, size=8, agent_view_size=3, n_triggers=2, n_prizes=2, no_neg_reward=False):
         self.n_triggers = n_triggers
         self.n_prizes = n_prizes
         self.used_positions = set()
         self.prizes = np.zeros((size, size))
         self.triggers = np.zeros((size, size))
         self.agent_color = 'yellow'
+        self.no_neg_reward = no_neg_reward
         
         super().__init__(
             grid_size=size,
@@ -85,7 +86,7 @@ class TriggersEnv(MiniGridEnv):
 
         if some_triggers_left:
             done = no_prizes_left
-            reward = -1
+            reward = 0 if self.no_neg_reward else -1
         else:
             done = no_prizes_left 
             reward = 1
@@ -147,9 +148,17 @@ class TriggersEnv3x3T1P1(TriggersEnv):
     def __init__(self):
         super().__init__(agent_view_size=3, n_triggers=1, n_prizes=1)
 
+class TriggersEnv3x3T1P1NoNeg(TriggersEnv):
+    def __init__(self):
+        super().__init__(agent_view_size=3, n_triggers=1, n_prizes=1, no_neg_reward=True)
+
 class TriggersEnv3x3T3P1(TriggersEnv):
     def __init__(self):
         super().__init__(agent_view_size=3, n_triggers=3, n_prizes=1)
+
+class TriggersEnv3x3T3P1NoNeg(TriggersEnv):
+    def __init__(self):
+        super().__init__(agent_view_size=3, n_triggers=3, n_prizes=1, no_neg_reward=True)
 
 class TriggersEnv3x3(TriggersEnv):
     def __init__(self):
@@ -182,8 +191,18 @@ register(
 )
 
 register(
+    id='MiniGrid-Triggers-3x3-T1P1-v1',
+    entry_point='gym_minigrid.envs:TriggersEnv3x3T1P1NoNeg'
+)
+
+register(
     id='MiniGrid-Triggers-3x3-T3P1-v0',
     entry_point='gym_minigrid.envs:TriggersEnv3x3T3P1'
+)
+
+register(
+    id='MiniGrid-Triggers-3x3-T3P1-v1',
+    entry_point='gym_minigrid.envs:TriggersEnv3x3T3P1NoNeg'
 )
 
 register(
