@@ -69,7 +69,7 @@ np.set_printoptions(threshold=sys.maxsize)
 def step(action):
     global prev_obs
     obs, reward, done, info = env.step(action)
-    print('step=%s, reward=%.2f' % (env.step_count, reward))
+    print('step={}, reward={:.2f}, events={}'.format(env.step_count, reward, info['events']))
     if prev_obs is not None:
         import torch
         effect = torch.from_numpy(obs - prev_obs).float()
@@ -81,6 +81,8 @@ def step(action):
 
     if done:
         print('done!')
+        redraw(obs)
+        time.sleep(10)
         prev_obs = reset()
     else:
         redraw(obs)

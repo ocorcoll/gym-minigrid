@@ -34,6 +34,7 @@ COLOR_TO_IDX = {
     # 'purple': 4,
     # 'yellow': 5,
     # 'grey': 6
+    'lime': 0,
     'yellow': 1,
     'green': 2,
     'blue': 3,
@@ -64,6 +65,7 @@ OBJECT_TO_IDX = {
     'lava': 11,
     'light': 12,
     'button': 13,
+    'reward': 14,
 }
 
 IDX_TO_OBJECT = dict(zip(OBJECT_TO_IDX.values(), OBJECT_TO_IDX.keys()))
@@ -1129,6 +1131,7 @@ class MiniGridEnv(gym.Env):
     def step(self, action):
         self.step_count += 1
 
+        info = dict(events=list())
         reward = 0
         done = False
 
@@ -1143,19 +1146,23 @@ class MiniGridEnv(gym.Env):
             self.agent_dir -= 1
             if self.agent_dir < 0:
                 self.agent_dir += 4
+            info['events'].append(('agent', 'move'))
 
         # Rotate right
         elif action == self.actions.right:
             self.agent_dir = (self.agent_dir + 1) % 4
+            info['events'].append(('agent', 'move'))
 
         # Move forward
         elif action == self.actions.forward:
             if fwd_cell == None or fwd_cell.can_overlap():
                 self.agent_pos = fwd_pos
-            if fwd_cell != None and fwd_cell.type == 'goal':
-                # done = True
-                # reward = self._reward()
-                done, reward = self._reached_goal()
+                if fwd_cell != None and fwd_cell.type == 'goal':
+                    info['events'].append(('agent', 'goal'))
+                    done, reward = self._reached_goal()
+                else:
+                    info['events'].append(('agent', 'move'))
+
             if fwd_cell != None and fwd_cell.type == 'lava':
                 done = True
 
@@ -1166,6 +1173,7 @@ class MiniGridEnv(gym.Env):
                     self.carrying = fwd_cell
                     self.carrying.cur_pos = np.array([-1, -1])
                     self.grid.set(*fwd_pos, None)
+                    info['events'].append((fwd_cell.type, 'picked'))
             elif fwd_cell and fwd_cell.can_pickup_content() and fwd_cell.can_contain() and fwd_cell.contains and self.carrying is None:
                 self.carrying = fwd_cell.contains
                 fwd_cell.contains = None
@@ -1173,6 +1181,7 @@ class MiniGridEnv(gym.Env):
         # Drop an object
         elif hasattr(self.actions, 'drop') and action == self.actions.drop:
             if not fwd_cell and self.carrying:
+                info['events'].append((self.carrying.type, 'dropped'))
                 self.grid.set(*fwd_pos, self.carrying)
                 self.carrying.cur_pos = fwd_pos
                 self.carrying = None
@@ -1183,7 +1192,8 @@ class MiniGridEnv(gym.Env):
         # Toggle/activate an object
         elif hasattr(self.actions, 'toggle') and action == self.actions.toggle:
             if fwd_cell:
-                fwd_cell.toggle(self, fwd_pos)
+                if fwd_cell.toggle(self, fwd_pos):
+                    info['events'].append((fwd_cell.type, 'toggle'))
 
         # Done action (not used by default)
         elif hasattr(self.actions, 'done') and action == self.actions.done:
@@ -1196,8 +1206,7 @@ class MiniGridEnv(gym.Env):
             done = True
 
         obs = self.gen_obs()
-
-        return obs, reward, done, dict(step=self.step_count)
+        return obs, reward, done, {**info, 'step': self.step_count}
 
     def gen_obs_grid(self):
         """
@@ -1224,10 +1233,11 @@ class MiniGridEnv(gym.Env):
         # We do this by placing the carried object at the agent's position
         # in the agent's partially observable view
         agent_pos = grid.width // 2, grid.height - 1
-        if self.carrying:
-            grid.set(*agent_pos, self.carrying)
-        else:
-            grid.set(*agent_pos, None)
+        # if self.carrying:
+        #     grid.set(*agent_pos, self.carrying)
+        # else:
+        #     grid.set(*agent_pos, None)
+        grid.set(*agent_pos, None)
 
         return grid, vis_mask
 
@@ -1334,4 +1344,5 @@ class MiniGridEnv(gym.Env):
     def _reached_goal(self):
         done = True
         reward = self._reward()
+        print(reward, done)
         return done, reward
