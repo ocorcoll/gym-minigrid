@@ -299,10 +299,7 @@ class LightRoom(RoomGrid):
             reward = 1.
             done = True
 
-<<<<<<< HEAD
-=======
         # Needs to be updated after reward is computed!
->>>>>>> 4743090229ade86ab4d2363cb89902cbc0d91d40
         for item in self.items.values():
             if isinstance(item, Reward):
                 info['events'].extend(item.update(reward))
